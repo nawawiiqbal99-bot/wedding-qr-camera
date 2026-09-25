@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kamera Pernikahan - Unggah Foto Kenangan</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f9f6f0;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .container {
+            background: #ffffff;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+        h2 {
+            color: #5c4033;
+            margin-bottom: 10px;
+        }
+        p {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 20px;
+        }
+        .btn {
+            background-color: #8c6d62;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+            transition: background 0.3s;
+        }
+        .btn:hover {
+            background-color: #6f5348;
+        }
+        .btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .preview-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: 15px;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+        .preview-item {
+            position: relative;
+            width: 100%;
+            padding-bottom: 100%;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #eee;
+        }
+        .preview-item img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        #loading {
+            display: none;
+            margin-top: 15px;
+            font-size: 14px;
+            color: #8c6d62;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Pernikahan Kami 💍</h2>
+        <p>Silakan ambil foto keseruan acara atau momen bersama pengantin (Maksimal 10 foto).</p>
+
+        <!-- Tombol yang langsung memicu kamera HP -->
+        <label for="cameraInput" class="btn" id="btnCapture">Buka Kamera / Pilih Foto</label>
+        <input type="file" id="cameraInput" accept="image/*" capture="environment" multiple>
+
+        <!-- Area Preview Foto yang dipilih -->
+        <div class="preview-container" id="previewContainer"></div>
+
+        <button class="btn" id="btnUpload" style="display:none; background-color: #2e7d32;" onclick="uploadPhotos()">Unggah ke Google Drive</button>
+        
+        <div id="loading">Sedang mengunggah foto, mohon tunggu...</div>
+    </div>
+
+    <script>
+        const SCRIPT_URL = "MASUKKAN_URL_WEB_APP_GOOGLE_APPS_SCRIPT_DISINI"; // Ganti dengan URL dari Langkah 1
+        let selectedPhotos = [];
+        const maxPhotos = 10;
+
+        const cameraInput = document.getElementById('cameraInput');
+        const previewContainer = document.getElementById('previewContainer');
+        const btnUpload = document.getElementById('btnUpload');
+        const btnCapture = document.getElementById('btnCapture');
+        const loading = document.getElementById('loading');
+
+        cameraInput.addEventListener('change', function(event) {
+            const files = event.target.files;
+            
+            if (selectedPhotos.length + files.length > maxPhotos) {
+                alert(`Maksimal total foto yang dapat diunggah adalah ${maxPhotos} foto.`);
+                return;
+            }
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const reader = new FileReader();
+
+                reader.onload = function(e) {
+                    selectedPhotos.push(e.target.result);
+                    renderPreviews();
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+
+        function renderPreviews() {
+            previewContainer.innerHTML = '';
+            selectedPhotos.forEach((photo, index) => {
+                const div = document.createElement('div');
+                div.className = 'preview-item';
+                div.innerHTML = `<img src="${photo}" alt="Preview">`;
+                previewContainer.appendChild(div);
+            });
+
+            if (selectedPhotos.length > 0) {
+                btnUpload.style.display = 'block';
+                btnCapture.innerText = `Tambah Foto Lagi (${selectedPhotos.length}/${maxPhotos})`;
+            } else {
+                btnUpload.style.display = 'none';
+                btnCapture.innerText = 'Buka Kamera / Pilih Foto';
+            }
+
+            if (selectedPhotos.length >= maxPhotos) {
+                btnCapture.style.display = 'none';
+            }
+        }
+
+        function uploadPhotos() {
+            if (selectedPhotos.length === 0) return;
+
+            btnUpload.style.display = 'none';
+            btnCapture.style.display = 'none';
+            loading.style.display = 'block';
+
+            fetch(SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors', // Diperlukan untuk Google Apps Script
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ photos: selectedPhotos })
+            })
+            .then(() => {
+                loading.style.display = 'none';
+                alert('Terima kasih! Foto berhasil diunggah ke Google Drive.');
+                selectedPhotos = [];
+                renderPreviews();
+                btnCapture.style.display = 'block';
+            })
+            .catch(error => {
+                loading.style.display = 'none';
+                alert('Terjadi kesalahan saat mengunggah. Silakan coba lagi.');
+                btnUpload.style.display = 'block';
+                btnCapture.style.display = 'block';
+                console.error('Error:', error);
+            });
+        }
+    </script>
+</body>
+</html>
